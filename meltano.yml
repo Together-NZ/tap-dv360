@@ -1,0 +1,39 @@
+version: 1
+send_anonymous_usage_stats: true
+project_id: dv360-121
+default_environment: test
+environments:
+- name: test
+state_backend:
+  uri: gs://uowaikato-main-meltano-state-staging
+plugins:
+  extractors:
+  - name: dv360-121
+    namespace: dv360_121
+    pip_url: -e .
+    capabilities:
+    - state
+    - catalog
+    - discover
+    - about
+    - stream-maps
+    config:
+      start_date: ${START_DATE}
+      advertiser_id: '532521343'
+      query_standard: 'query_standard.json'
+      query_youtube: 'query_youtube.json'
+  loaders:
+  - name: target-csv
+    variant: meltanolabs
+    pip_url: git+https://github.com/MeltanoLabs/target-csv.git
+  - name: target-jsonl
+    variant: andyh1203
+    pip_url: target-jsonl
+    config:
+      output_dir: ./output
+  - name: target-bigquery
+    variant: z3z1ma
+    pip_url: git+https://github.com/z3z1ma/target-bigquery.git
+    config:
+      project: "uowaikato-main"  # Replace with your actual GCP project ID
+      dataset: "dv360"   # Replace with your BigQuery dataset name

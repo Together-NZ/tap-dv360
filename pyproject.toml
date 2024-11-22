@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "dv360-121"
+version = "0.0.1"
+description = "Singer tap for dv360, built with the Meltano Singer SDK."
+readme = "README.md"
+authors = ["peter wang <pw33537515@gmail.com>"]
+keywords = ["ELT", "dv360"]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+singer-sdk = { version="~=0.42.1", extras = ["faker"] }
+requests = "~=2.32.3"
+google-auth = "*"
+google-auth-oauthlib = "*"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+dv360-121 = 'dv360_121.tap:Tapdv360.cli'
