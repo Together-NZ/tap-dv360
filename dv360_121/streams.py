@@ -26,6 +26,9 @@ current_date = datetime.now()
 
 
 class DV360StandardStream(dv360Stream):
+    def __init__(self, tap, name=None, schema=None, path=None):
+        super().__init__(tap, name, schema, path)
+        self.shared_data = tap.shared_data
     """Define dynamic stream for    DV360 metrics."""
     
     name = "dv360_standard"
@@ -59,7 +62,7 @@ class DV360StandardStream(dv360Stream):
         th.Property("CM360 Post-Click Revenue", th.NumberType, description="Revenue from post-click events in CM360"),
         th.Property("CM360 Post-View Revenue", th.NumberType, description="Revenue from post-view events in CM360"),
     ).to_dict()
-
+    @property
     def authenticator(self):
         self.service_account = self.config.get("service_account")
         return GoogleADCAuthenticator(target_service_account=self.service_account)
@@ -91,8 +94,8 @@ class DV360StandardStream(dv360Stream):
             filters=[]
             if advertiser_id !=None:
                 filters.extend([
-                    {"type":"FILTER_ADVERTISER","value":id}
-                    for id in advertiser_id
+                    {"type":"FILTER_ADVERTISER","value":advertiser_id}
+                    
                 ]) 
              
             query_template["params"]["filters"]=filters 
@@ -161,9 +164,10 @@ class DV360StandardStream(dv360Stream):
             # Identify metrics dynamically from the first valid row
             for row in reader:
                 logger.debug(f"Inspecting row for metrics: {row}")
-                if not row.get("Creative") and row.get("Insertion Order") and row.get("Insertion Order ID"):
+                if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
                     filters.add((row.get("Insertion Order"),row.get("Insertion Order ID")))
-                    
+                    logger.info(f"Added to filters: (Insertion Order: {row.get('Insertion Order')}, "
+                    f"Insertion Order ID: {row.get('Insertion Order ID')})")
                 if not row.get("Date"):
                     logger.info(f"Skipping row without a date: {row}")
                     continue
@@ -175,18 +179,30 @@ class DV360StandardStream(dv360Stream):
 
             # Reinitialize reader to start from the beginning
             reader = csv.DictReader(csv_content.splitlines())
-            filters = [{"Insertion Order":io,"Insertion Order ID":io_id} for io,io_id in filters]
-            self.context["shared_data"]=filters
+
+
+            final_filters = [{"Insertion Order":io,"Insertion Order ID":io_id} for io,io_id in filters]
+            
+            self.shared_data["filters"] = filters
+            self._tap.shared_data["filters"] = filters
+            filers = set()
             # Process all rows and extract metric data
             for row in reader:
+                if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
+                     # Check if the row matches the condition to populate filters
+                    filters.add((row.get("Insertion Order"), row.get("Insertion Order ID")))
+                    logger.info(f"Added to filters: (Insertion Order: {row.get('Insertion Order')}, "
+                    f"Insertion Order ID: {row.get('Insertion Order ID')})")
+                    logger.debug(f"Current state of filters: {filters}")
                 logger.debug(f"Processing row: {row}")
-
+                if row.get("Insertion Order") :
+                    logger.debug('detected')
                 if not row.get("Date"):
                     logger.info(f"Skipping row without a date: {row}")
                     continue
                 else:
                     yield row
-
+            
         except Exception as e:
             logger.exception("Error occurred while parsing CSV content.")
             raise e
@@ -194,7 +210,11 @@ class DV360StandardStream(dv360Stream):
 
 class DV360YoutubeStream(dv360Stream):
     """Define dynamic stream for    DV360 metrics."""
-    
+    def __init__(self, tap, name = None, schema = None, path = None):
+        super().__init__(tap, name, schema, path)
+        
+        self.shared_data = tap.shared_data
+        logger.info(f"Shared data: {self.shared_data}")
     name = "dv360_youtube"
     path=f'https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2'
     primary_keys: t.ClassVar[list[str]] = ["query_id"]
@@ -225,6 +245,10 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Revenue (Adv Currency)", th.NumberType, description="Revenue generated in the advertiser's currency"),
     ).to_dict()
 
+    @property
+    def authenticator(self):
+        self.service_account = self.config.get("service_account")
+        return GoogleADCAuthenticator(target_service_account=self.service_account)
 
     def prepare_request_payload(
         self,
@@ -235,7 +259,8 @@ class DV360YoutubeStream(dv360Stream):
         # Fetch configuration values
         start_date_str = self.config.get("start_date")  # Assumes "start_date" is in ISO format
         end_date_str = self.config.get("end_date")
-        filters = self.context.get("shared_data")
+        logger.info(f"start_date: {start_date_str}, end_date: {end_date_str}")
+        filters = self._tap.shared_data.get("filters",[])
         query_path = self.config.get("query_youtube")
         # Parse start and end dates
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
@@ -251,14 +276,11 @@ class DV360YoutubeStream(dv360Stream):
                 query_template = json.load(template_file)
 
             # Populate filters
-            formatted_filters = [
-                {"type": "FILTER_INSERTION_ORDER_NAME", "value": io}
-                for io, io_id in filters
-            ] + [
-                {"type": "FILTER_INSERTION_ORDER_ID", "value": io_id}
+            formatted_filters = [ 
+                {"type": "FILTER_INSERTION_ORDER", "value": io_id}
                 for io, io_id in filters
             ]
-            query_template["params"]["filters"]= json.dumps(formatted_filters)
+            query_template["params"]["filters"]= formatted_filters
             # Populate custom start and end dates
             query_template["metadata"]["dataRange"]["customStartDate"]["year"] = start_date.year
             query_template["metadata"]["dataRange"]["customStartDate"]["month"] = start_date.month

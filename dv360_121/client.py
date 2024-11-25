@@ -47,7 +47,10 @@ class dv360Stream(RESTStream):
 
     @property
     def authenticator(self,target_service_account):
-        """Provide the custom authenticator."""
+        """Provide the custom authenticator with service account impersonation."""
+        target_service_account = self.config.get("service_account")
+        if not target_service_account:
+            raise ValueError("Service account is not defined in the configuration.")
         return GoogleADCAuthenticator(target_service_account=target_service_account)
 
     def get_url(self, context: Optional[Dict[str, Any]]) -> str:
