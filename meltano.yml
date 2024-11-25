@@ -22,6 +22,7 @@ plugins:
       advertiser_id: '532521343'
       query_standard: 'query_standard.json'
       query_youtube: 'query_youtube.json'
+      service_account: together-meltano@together-internal.iam.gserviceaccount.com
   loaders:
   - name: target-csv
     variant: meltanolabs
