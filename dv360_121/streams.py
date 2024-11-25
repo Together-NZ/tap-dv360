@@ -156,51 +156,22 @@ class DV360StandardStream(dv360Stream):
             filters=set()
             reader = csv.DictReader(csv_content.splitlines())
             logger.info("Parsing CSV content into rows.")
-
-            # Dynamically detect metrics from the first row with data
-            non_metric_fields = {"Advertiser ID", "Advertiser Currency", "Date"}
-            relevant_metrics = set()
-
-            # Identify metrics dynamically from the first valid row
-            for row in reader:
-                logger.debug(f"Inspecting row for metrics: {row}")
-                if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
-                    filters.add((row.get("Insertion Order"),row.get("Insertion Order ID")))
-                    logger.info(f"Added to filters: (Insertion Order: {row.get('Insertion Order')}, "
-                    f"Insertion Order ID: {row.get('Insertion Order ID')})")
-                if not row.get("Date"):
-                    logger.info(f"Skipping row without a date: {row}")
-                    continue
-
-                # Any column not in non-metric fields is considered a metric
-                relevant_metrics = {key for key in row.keys() if key not in non_metric_fields}
-                logger.info(f"Dynamically identified metrics: {relevant_metrics}")
-                break
-
             # Reinitialize reader to start from the beginning
-            reader = csv.DictReader(csv_content.splitlines())
-
-
-            final_filters = [{"Insertion Order":io,"Insertion Order ID":io_id} for io,io_id in filters]
-            
+            reader = csv.DictReader(csv_content.splitlines())            
             self.shared_data["filters"] = filters
             self._tap.shared_data["filters"] = filters
-            filers = set()
             # Process all rows and extract metric data
             for row in reader:
-                if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
-                     # Check if the row matches the condition to populate filters
-                    filters.add((row.get("Insertion Order"), row.get("Insertion Order ID")))
-                    logger.info(f"Added to filters: (Insertion Order: {row.get('Insertion Order')}, "
-                    f"Insertion Order ID: {row.get('Insertion Order ID')})")
-                    logger.debug(f"Current state of filters: {filters}")
-                logger.debug(f"Processing row: {row}")
-                if row.get("Insertion Order") :
-                    logger.debug('detected')
+                
                 if not row.get("Date"):
-                    logger.info(f"Skipping row without a date: {row}")
-                    continue
+                    break
                 else:
+                    if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
+                        # Check if the row matches the condition to populate filters
+                        filters.add((row.get("Insertion Order"), row.get("Insertion Order ID")))
+                        logger.info(f"Added to filters: (Insertion Order: {row.get('Insertion Order')}, "
+                        f"Insertion Order ID: {row.get('Insertion Order ID')})")
+                        logger.debug(f"Current state of filters: {filters}")
                     yield row
             
         except Exception as e:
@@ -236,14 +207,15 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Line Item ID", th.StringType, description="ID of the line item"),
         
         # Metrics
-        th.Property("Clicks", th.IntegerType, description="Number of clicks on the ads"),
-        th.Property("Impressions", th.IntegerType, description="Number of impressions for the ads"),
-        th.Property("First-Quartile Views (Video)", th.IntegerType, description="Number of video views that reached the first quartile"),
-        th.Property("Midpoint Views (Video)", th.IntegerType, description="Number of video views that reached the midpoint"),
-        th.Property("Third-Quartile Views (Video)", th.IntegerType, description="Number of video views that reached the third quartile"),
-        th.Property("Complete Views (Video)", th.IntegerType, description="Number of video completions"),
-        th.Property("Revenue (Adv Currency)", th.NumberType, description="Revenue generated in the advertiser's currency"),
+        th.Property("Clicks", th.StringType, description="Number of clicks on the ads"),
+        th.Property("Impressions", th.StringType, description="Number of impressions for the ads"),
+        th.Property("First-Quartile Views (Video)", th.StringType, description="Number of video views that reached the first quartile"),
+        th.Property("Midpoint Views (Video)", th.StringType, description="Number of video views that reached the midpoint"),
+        th.Property("Third-Quartile Views (Video)", th.StringType, description="Number of video views that reached the third quartile"),
+        th.Property("Complete Views (Video)", th.StringType, description="Number of video completions"),
+        th.Property("Revenue (Adv Currency)", th.StringType, description="Revenue generated in the advertiser's currency"),
     ).to_dict()
+
 
     @property
     def authenticator(self):
@@ -316,55 +288,32 @@ class DV360YoutubeStream(dv360Stream):
                 response_json = json.loads(csv_content)
                 csv_url = response_json.get("metadata", {}).get("googleCloudStoragePath")
                 if not csv_url:
-                    logger.error("CSV URL not found in response.")
                     raise ValueError("CSV URL not found in response.")
 
                 logger.info(f"Downloading CSV from URL: {csv_url}")
                 response = requests.get(csv_url)
                 if response.status_code != 200:
-                    logger.error(f"Failed to download CSV: {response.status_code} - {response.text}")
                     raise RuntimeError(f"Failed to download CSV: {response.status_code} - {response.text}")
 
                 csv_content = response.text  # Replace with downloaded CSV content
                 logger.info("CSV content downloaded successfully.")
 
             except json.JSONDecodeError as e:
-                logger.exception("Failed to decode JSON response.")
                 raise RuntimeError("Invalid JSON in API response.") from e
 
         # Parse the CSV content
         try:
             reader = csv.DictReader(csv_content.splitlines())
             logger.info("Parsing CSV content into rows.")
-
-            # Dynamically detect metrics from the first row with data
-            non_metric_fields = {"Advertiser ID", "Advertiser Currency", "Date"}
-            relevant_metrics = set()
-
-            # Identify metrics dynamically from the first valid row
-            for row in reader:
-                logger.debug(f"Inspecting row for metrics: {row}")
-
-                if not row.get("Date"):
-                    logger.info(f"Skipping row without a date: {row}")
-                    continue
-
-                # Any column not in non-metric fields is considered a metric
-                relevant_metrics = {key for key in row.keys() if key not in non_metric_fields}
-                logger.info(f"Dynamically identified metrics: {relevant_metrics}")
-                break
-
             # Reinitialize reader to start from the beginning
             reader = csv.DictReader(csv_content.splitlines())
 
             # Process all rows and extract metric data
             for row in reader:
-                logger.debug(f"Processing row: {row}")
-
                 if not row.get("Date"):
-                    logger.info(f"Skipping row without a date: {row}")
-                    continue
+                    break
                 else:
+                    logger.debug(f"Processing row: {row}")
                     yield row
 
         except Exception as e:
