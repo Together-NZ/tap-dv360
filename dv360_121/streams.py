@@ -8,7 +8,7 @@ from typing import Iterable, Dict, Optional, Any, List
 
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from datetime import datetime, timedelta
-from dv360_121.client import dv360Stream
+from dv360_121.client import dv360Stream,GoogleADCAuthenticator
 import csv
 import json
 import logging
@@ -60,7 +60,9 @@ class DV360StandardStream(dv360Stream):
         th.Property("CM360 Post-View Revenue", th.NumberType, description="Revenue from post-view events in CM360"),
     ).to_dict()
 
-
+    def authenticator(self):
+        self.service_account = self.config.get("service_account")
+        return GoogleADCAuthenticator(target_service_account=self.service_account)
     def prepare_request_payload(
         self,
         context: Optional[Dict[str, Any]],
@@ -80,12 +82,20 @@ class DV360StandardStream(dv360Stream):
             if end_date_str
             else datetime.now()
         )
-
+        
         # Load and populate query template
         try:
             with open(query_path, "r") as template_file:
                 query_template = json.load(template_file)
-
+            # populate the filter with advertiser id on standard stream
+            filters=[]
+            if advertiser_id !=None:
+                filters.extend([
+                    {"type":"FILTER_ADVERTISER","value":id}
+                    for id in advertiser_id
+                ]) 
+             
+            query_template["params"]["filters"]=filters 
             # Populate custom start and end dates
             query_template["metadata"]["dataRange"]["customStartDate"]["year"] = start_date.year
             query_template["metadata"]["dataRange"]["customStartDate"]["month"] = start_date.month
@@ -108,22 +118,7 @@ class DV360StandardStream(dv360Stream):
 
         return None
 
-    def get_dynamic_schema(csv_content: str):
-        """Generate schema dynamically based on CSV headers."""
-        reader = csv.DictReader(csv_content.splitlines())
-        first_row = next(reader)
-        non_metric_fields = {"Advertiser ID", "Advertiser Currency", "Date"}
-        metric_fields = [key for key in first_row.keys() if key not in non_metric_fields]
 
-        schema_properties = [
-            th.Property("query_id", th.StringType, description="Unique Query ID"),
-            th.Property("date", th.StringType, description="Data date"),
-        ]
-        schema_properties.extend(
-            [th.Property(metric, th.NumberType, description=f"Value for {metric}") for metric in metric_fields]
-        )
-
-        return th.PropertiesList(*schema_properties).to_dict()
 
 
     def _parse_csv_to_records(self, csv_content: str) -> Iterable[Dict[str, Any]]:
@@ -155,6 +150,7 @@ class DV360StandardStream(dv360Stream):
 
         # Parse the CSV content
         try:
+            filters=set()
             reader = csv.DictReader(csv_content.splitlines())
             logger.info("Parsing CSV content into rows.")
 
@@ -165,7 +161,9 @@ class DV360StandardStream(dv360Stream):
             # Identify metrics dynamically from the first valid row
             for row in reader:
                 logger.debug(f"Inspecting row for metrics: {row}")
-
+                if not row.get("Creative") and row.get("Insertion Order") and row.get("Insertion Order ID"):
+                    filters.add((row.get("Insertion Order"),row.get("Insertion Order ID")))
+                    
                 if not row.get("Date"):
                     logger.info(f"Skipping row without a date: {row}")
                     continue
@@ -177,7 +175,8 @@ class DV360StandardStream(dv360Stream):
 
             # Reinitialize reader to start from the beginning
             reader = csv.DictReader(csv_content.splitlines())
-
+            filters = [{"Insertion Order":io,"Insertion Order ID":io_id} for io,io_id in filters]
+            self.context["shared_data"]=filters
             # Process all rows and extract metric data
             for row in reader:
                 logger.debug(f"Processing row: {row}")
@@ -236,9 +235,8 @@ class DV360YoutubeStream(dv360Stream):
         # Fetch configuration values
         start_date_str = self.config.get("start_date")  # Assumes "start_date" is in ISO format
         end_date_str = self.config.get("end_date")
-        advertiser_id = self.config.get("advertiser_id")
+        filters = self.context.get("shared_data")
         query_path = self.config.get("query_youtube")
-
         # Parse start and end dates
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = (
@@ -252,6 +250,15 @@ class DV360YoutubeStream(dv360Stream):
             with open(query_path, "r") as template_file:
                 query_template = json.load(template_file)
 
+            # Populate filters
+            formatted_filters = [
+                {"type": "FILTER_INSERTION_ORDER_NAME", "value": io}
+                for io, io_id in filters
+            ] + [
+                {"type": "FILTER_INSERTION_ORDER_ID", "value": io_id}
+                for io, io_id in filters
+            ]
+            query_template["params"]["filters"]= json.dumps(formatted_filters)
             # Populate custom start and end dates
             query_template["metadata"]["dataRange"]["customStartDate"]["year"] = start_date.year
             query_template["metadata"]["dataRange"]["customStartDate"]["month"] = start_date.month
@@ -274,22 +281,6 @@ class DV360YoutubeStream(dv360Stream):
 
         return None
 
-    def get_dynamic_schema(csv_content: str):
-        """Generate schema dynamically based on CSV headers."""
-        reader = csv.DictReader(csv_content.splitlines())
-        first_row = next(reader)
-        non_metric_fields = {"Advertiser ID", "Advertiser Currency", "Date"}
-        metric_fields = [key for key in first_row.keys() if key not in non_metric_fields]
-
-        schema_properties = [
-            th.Property("query_id", th.StringType, description="Unique Query ID"),
-            th.Property("date", th.StringType, description="Data date"),
-        ]
-        schema_properties.extend(
-            [th.Property(metric, th.NumberType, description=f"Value for {metric}") for metric in metric_fields]
-        )
-
-        return th.PropertiesList(*schema_properties).to_dict()
 
 
     def _parse_csv_to_records(self, csv_content: str) -> Iterable[Dict[str, Any]]:

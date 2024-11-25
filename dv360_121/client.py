@@ -5,11 +5,21 @@ from google.auth import default as google_auth_default
 from google.auth.transport.requests import AuthorizedSession, Request
 from singer_sdk.streams import RESTStream
 import requests
+import google
+from google.auth.transport.requests import Request
+from google.auth import impersonated_credentials
 class GoogleADCAuthenticator:
-    """Custom authenticator using Google Application Default Credentials."""
+    """Custom authenticator using Google Application Default Credentials with impersonation."""
 
-    def __init__(self):
-        self.credentials, _ = google_auth_default(scopes=["https://www.googleapis.com/auth/doubleclickbidmanager"])
+    def __init__(self, target_service_account):
+        # Obtain default ADC credentials
+        source_credentials, _ = google.auth.default()
+        # Create impersonated credentials
+        self.credentials = impersonated_credentials.Credentials(
+            source_credentials=source_credentials,
+            target_principal=target_service_account,
+            target_scopes=["https://www.googleapis.com/auth/doubleclickbidmanager"],
+        )
         if not self.credentials.valid:
             self.credentials.refresh(Request())
 
@@ -36,9 +46,9 @@ class dv360Stream(RESTStream):
         return f"https://doubleclickbidmanager.googleapis.com/{self.version}"
 
     @property
-    def authenticator(self):
+    def authenticator(self,target_service_account):
         """Provide the custom authenticator."""
-        return GoogleADCAuthenticator()
+        return GoogleADCAuthenticator(target_service_account=target_service_account)
 
     def get_url(self, context: Optional[Dict[str, Any]]) -> str:
         """Construct the URL for the current operation."""
