@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "dv360-121",
+            "name": "tap-dv360",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}",
