@@ -1,6 +1,6 @@
 version: 1
 send_anonymous_usage_stats: true
-project_id: dv360-121
+project_id: tap-dv360
 default_environment: test
 environments:
 - name: test
@@ -8,8 +8,8 @@ state_backend:
   uri: gs://uowaikato-main-meltano-state-staging
 plugins:
   extractors:
-  - name: dv360-121
-    namespace: dv360_121
+  - name: tap-dv360
+    namespace: tap_dv360
     pip_url: -e .
     capabilities:
     - state
@@ -19,10 +19,10 @@ plugins:
     - stream-maps
     config:
       start_date: ${START_DATE}
-      advertiser_id: '532521343'
+      advertiser_id: ${ADVERTISER_ID}
       query_standard: 'query_standard.json'
       query_youtube: 'query_youtube.json'
-      service_account: together-meltano@together-internal.iam.gserviceaccount.com
+      service_account: ${SERVICE_ACCOUNT}
   loaders:
   - name: target-csv
     variant: meltanolabs

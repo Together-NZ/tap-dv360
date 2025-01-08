@@ -33,7 +33,7 @@ class GoogleADCAuthenticator:
 class dv360Stream(RESTStream):
     """Stream class for DV360 API."""
 
-    name = "dv360"
+    name = "tap-dv360"
     records_jsonpath = "$[*]"  # Adjust based on DV360 API's response structure
     next_page_token_jsonpath = None  # Assuming no pagination for this example
 

@@ -6,7 +6,7 @@ from dv360_121.streams import DV360StandardStream, DV360YoutubeStream
 
 class Tapdv360(Tap):
     """Singer tap for DV360."""
-    name = "dv360-121"
+    name = "tap-dv360"
     def __init__(self, *, config = None, catalog = None, state = None, parse_env_config = False, validate_config = True, setup_mapper = True):
         
         super().__init__(config=config, catalog=catalog, state=state, parse_env_config=parse_env_config, validate_config=validate_config, setup_mapper=setup_mapper)
