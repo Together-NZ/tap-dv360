@@ -1,4 +1,4 @@
-"""Stream type classes for dv360-121."""
+"""Stream type classes for tap-dv360."""
 
 from __future__ import annotations
 from singer_sdk.typing import PropertiesList, Property, StringType, DateTimeType, NumberType

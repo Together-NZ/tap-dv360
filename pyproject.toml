@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "dv360-121"
+name = "tap-dv360"
 version = "0.0.1"
 description = "Singer tap for dv360, built with the Meltano Singer SDK."
 readme = "README.md"
@@ -26,4 +26,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-dv360-121 = 'dv360_121.tap:Tapdv360.cli'
+tap-dv360 = 'tap_dv360.tap:Tapdv360.cli'

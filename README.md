@@ -1,6 +1,6 @@
-# dv360-121
+# tap-dv360
 
-`dv360-121` is a Singer tap for dv360.
+`tap-dv360` is a Singer tap for dv360.
 
 Built with the [Meltano Tap SDK](https://sdk.meltano.com) for Singer Taps.
 

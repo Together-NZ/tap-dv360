@@ -1,6 +1,6 @@
 from singer_sdk import Tap, Stream
 from singer_sdk.typing import PropertiesList, Property, StringType,DateTimeType
-from dv360_121.streams import DV360StandardStream, DV360YoutubeStream
+from tap_dv360.streams import DV360StandardStream, DV360YoutubeStream
 
 
 
