@@ -22,15 +22,16 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 current_date = datetime.now()
-
+NO_SHARED_DATA = False
 
 
 class DV360StandardStream(dv360Stream):
     def __init__(self, tap, name=None, schema=None, path=None):
         super().__init__(tap, name, schema, path)
         self.shared_data = tap.shared_data
+        self.no_data_available = False
     """Define dynamic stream for    DV360 metrics."""
-    
+    global NO_SHARED_DATA
     name = "dv360_standard"
     path=f'https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2'
     primary_keys: t.ClassVar[list[str]] = ["query_id"]
@@ -127,7 +128,7 @@ class DV360StandardStream(dv360Stream):
     def _parse_csv_to_records(self, csv_content: str) -> Iterable[Dict[str, Any]]:
         """Convert CSV content into a list of records, dynamically extracting metric names."""
         logger.info("Starting to parse CSV content.")
-
+        global NO_SHARED_DATA
         # If the content looks like JSON, extract the `googleCloudStoragePath`
         if csv_content.strip().startswith("{"):
             logger.info("Response appears to be JSON; attempting to extract CSV URL.")
@@ -166,6 +167,11 @@ class DV360StandardStream(dv360Stream):
                 if not row.get("Date"):
                     break
                 else:
+                    date_value = row.get("Date")
+                    if date_value == "No data returned by the reporting service.":
+                        logger.warning("No data available from the report. Returning empty iterator.")
+                        NO_SHARED_DATA = True
+                        return  # Stop processing, no valid data
                     if row.get("Creative")=="Unknown" and row.get("Insertion Order") and row.get("Insertion Order ID") and row.get("Date"):
                         # Check if the row matches the condition to populate filters
                         filters.add((row.get("Insertion Order"), row.get("Insertion Order ID")))
@@ -180,21 +186,22 @@ class DV360StandardStream(dv360Stream):
 
 
 class DV360YoutubeStream(dv360Stream):
-    """Define dynamic stream for    DV360 metrics."""
-    def __init__(self, tap, name = None, schema = None, path = None):
+    """Define dynamic stream for DV360 YouTube metrics."""
+
+    def __init__(self, tap, name=None, schema=None, path=None):
         super().__init__(tap, name, schema, path)
-        
         self.shared_data = tap.shared_data
         logger.info(f"Shared data: {self.shared_data}")
+
     name = "dv360_youtube"
-    path=f'https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2'
+    path = "https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2"
     primary_keys: t.ClassVar[list[str]] = ["query_id"]
     replication_key = "Date"
     records_jsonpath = "$[*]"  # Adjust based on DV360 API's response
     next_page_token_jsonpath = None  # Assuming no pagination for this example
+
     # Example schema definition (flexible for metrics)
     schema = th.PropertiesList(
-        # GroupBy Columns
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
         th.Property("YouTube Ad", th.StringType, description="Name of the YouTube ad"),
         th.Property("Advertiser Currency", th.StringType, description="Currency used by the advertiser"),
@@ -205,8 +212,6 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("YouTube Ad Group ID", th.StringType, description="ID of the YouTube ad group"),
         th.Property("Line Item", th.StringType, description="Name of the line item"),
         th.Property("Line Item ID", th.StringType, description="ID of the line item"),
-        
-        # Metrics
         th.Property("Clicks", th.StringType, description="Number of clicks on the ads"),
         th.Property("Impressions", th.StringType, description="Number of impressions for the ads"),
         th.Property("First-Quartile Views (Video)", th.StringType, description="Number of video views that reached the first quartile"),
@@ -215,7 +220,6 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Complete Views (Video)", th.StringType, description="Number of video completions"),
         th.Property("Revenue (Adv Currency)", th.StringType, description="Revenue generated in the advertiser's currency"),
     ).to_dict()
-
 
     @property
     def authenticator(self):
@@ -232,15 +236,17 @@ class DV360YoutubeStream(dv360Stream):
         start_date_str = self.config.get("start_date")  # Assumes "start_date" is in ISO format
         end_date_str = self.config.get("end_date")
         logger.info(f"start_date: {start_date_str}, end_date: {end_date_str}")
-        filters = self._tap.shared_data.get("filters",[])
+
+        # Get shared filters from DV360StandardStream
+        filters = self._tap.shared_data.get("filters", [])
+
+
+
         query_path = self.config.get("query_youtube")
+
         # Parse start and end dates
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-        end_date = (
-            datetime.strptime(end_date_str, "%Y-%m-%d")
-            if end_date_str
-            else datetime.now()
-        )
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d") if end_date_str else datetime.now()
 
         # Load and populate query template
         try:
@@ -248,11 +254,12 @@ class DV360YoutubeStream(dv360Stream):
                 query_template = json.load(template_file)
 
             # Populate filters
-            formatted_filters = [ 
+            formatted_filters = [
                 {"type": "FILTER_INSERTION_ORDER", "value": io_id}
                 for io, io_id in filters
             ]
-            query_template["params"]["filters"]= formatted_filters
+            query_template["params"]["filters"] = formatted_filters
+
             # Populate custom start and end dates
             query_template["metadata"]["dataRange"]["customStartDate"]["year"] = start_date.year
             query_template["metadata"]["dataRange"]["customStartDate"]["month"] = start_date.month
@@ -261,7 +268,6 @@ class DV360YoutubeStream(dv360Stream):
             query_template["metadata"]["dataRange"]["customEndDate"]["year"] = end_date.year
             query_template["metadata"]["dataRange"]["customEndDate"]["month"] = end_date.month
             query_template["metadata"]["dataRange"]["customEndDate"]["day"] = end_date.day
-
 
             logger.debug(f"Prepared query payload: {json.dumps(query_template, indent=2)}")
 
@@ -275,13 +281,11 @@ class DV360YoutubeStream(dv360Stream):
 
         return None
 
-
-
     def _parse_csv_to_records(self, csv_content: str) -> Iterable[Dict[str, Any]]:
         """Convert CSV content into a list of records, dynamically extracting metric names."""
         logger.info("Starting to parse CSV content.")
 
-        # If the content looks like JSON, extract the `googleCloudStoragePath`
+        # If response is JSON, extract CSV URL
         if csv_content.strip().startswith("{"):
             logger.info("Response appears to be JSON; attempting to extract CSV URL.")
             try:
@@ -305,11 +309,12 @@ class DV360YoutubeStream(dv360Stream):
         try:
             reader = csv.DictReader(csv_content.splitlines())
             logger.info("Parsing CSV content into rows.")
-            # Reinitialize reader to start from the beginning
-            reader = csv.DictReader(csv_content.splitlines())
+            logger.info(f"NO_SHARED_DATA: {NO_SHARED_DATA}")
 
-            # Process all rows and extract metric data
             for row in reader:
+                if NO_SHARED_DATA:
+                    logger.info("NO_SHARED_DATA is True. Returning empty iterator.")
+                    return
                 if not row.get("Date"):
                     break
                 else:
@@ -319,4 +324,3 @@ class DV360YoutubeStream(dv360Stream):
         except Exception as e:
             logger.exception("Error occurred while parsing CSV content.")
             raise e
-
