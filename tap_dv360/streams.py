@@ -62,6 +62,7 @@ class DV360StandardStream(dv360Stream):
         th.Property("Revenue (Adv Currency)", th.NumberType, description="Revenue in advertiser currency"),
         th.Property("CM360 Post-Click Revenue", th.NumberType, description="Revenue from post-click events in CM360"),
         th.Property("CM360 Post-View Revenue", th.NumberType, description="Revenue from post-view events in CM360"),
+        th.Property("Video Plays (Video)", th.IntegerType, description="Number of video plays"),
     ).to_dict()
     @property
     def authenticator(self):
@@ -219,6 +220,8 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Third-Quartile Views (Video)", th.StringType, description="Number of video views that reached the third quartile"),
         th.Property("Complete Views (Video)", th.StringType, description="Number of video completions"),
         th.Property("Revenue (Adv Currency)", th.StringType, description="Revenue generated in the advertiser's currency"),
+        th.Property("Advertiser", th.StringType, description="Name of the advertiser"),
+        th.Property("TrueView", th.StringType, description="True view"),
     ).to_dict()
 
     @property
