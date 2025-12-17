@@ -204,6 +204,7 @@ class DV360YoutubeStream(dv360Stream):
     # Example schema definition (flexible for metrics)
     schema = th.PropertiesList(
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
+        th.Property("YouTube Ad ID", th.StringType, description="ID of the YouTube ad"),
         th.Property("YouTube Ad", th.StringType, description="Name of the YouTube ad"),
         th.Property("Advertiser Currency", th.StringType, description="Currency used by the advertiser"),
         th.Property("Insertion Order", th.StringType, description="Name of the insertion order"),
