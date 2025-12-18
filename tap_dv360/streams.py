@@ -203,6 +203,7 @@ class DV360YoutubeStream(dv360Stream):
 
     # Example schema definition (flexible for metrics)
     schema = th.PropertiesList(
+        th.Property("Advertiser", th.StringType, description="Name of the advertiser"),
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
         th.Property("YouTube Ad ID", th.StringType, description="ID of the YouTube ad"),
         th.Property("YouTube Ad", th.StringType, description="Name of the YouTube ad"),
@@ -221,7 +222,6 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Third-Quartile Views (Video)", th.StringType, description="Number of video views that reached the third quartile"),
         th.Property("Complete Views (Video)", th.StringType, description="Number of video completions"),
         th.Property("Revenue (Adv Currency)", th.StringType, description="Revenue generated in the advertiser's currency"),
-        th.Property("Advertiser", th.StringType, description="Name of the advertiser"),
         th.Property("TrueView", th.StringType, description="True view"),
     ).to_dict()
 
