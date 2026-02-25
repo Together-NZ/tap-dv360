@@ -42,6 +42,7 @@ class DV360StandardStream(dv360Stream):
     schema = th.PropertiesList(
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
         th.Property("Creative", th.StringType, description="Creative name or identifier"),
+        th.Property("Creative ID", th.StringType, description="Creative id for creative"),
         th.Property("Advertiser Currency", th.StringType, description="Currency used by the advertiser"),
         th.Property("Insertion Order", th.StringType, description="Name of the insertion order"),
         th.Property("Insertion Order ID", th.StringType, description="Unique ID of the insertion order"),
