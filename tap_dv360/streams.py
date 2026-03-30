@@ -224,6 +224,7 @@ class DV360YoutubeStream(dv360Stream):
         th.Property("Complete Views (Video)", th.StringType, description="Number of video completions"),
         th.Property("Revenue (Adv Currency)", th.StringType, description="Revenue generated in the advertiser's currency"),
         th.Property("TrueView", th.StringType, description="True view"),
+        th.Property("Conversions", th.StringType, description="Number of conversions"),
     ).to_dict()
 
     @property
