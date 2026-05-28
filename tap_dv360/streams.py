@@ -246,7 +246,9 @@ class DV360YoutubeStream(dv360Stream):
         # Get shared filters from DV360StandardStream
         filters = self._tap.shared_data.get("filters", [])
 
-
+        if not filters:
+            logger.info("No Campaigns available. Returning empty iterator.")
+            return
 
         query_path = self.config.get("query_youtube")
 
