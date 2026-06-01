@@ -123,7 +123,9 @@ class dv360Stream(RESTStream):
             url = self.get_url(context)
             payload = self.prepare_request_payload(context)
             headers = {"Authorization": f"Bearer {self.authenticator.credentials.token}"}
-
+            if payload is None:
+                self.logger.info("No data for YouTube. Returning empty iterator.")
+                return
             response = requests.post(url, json=payload, headers=headers)
             if response.status_code != 200:
                 raise RuntimeError(f"API call failed: {response.status_code} - {response.text}")
