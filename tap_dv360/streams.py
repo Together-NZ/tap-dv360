@@ -27,19 +27,22 @@ NO_SHARED_DATA = False
 
 class DV360StandardStream(dv360Stream):
     def __init__(self, tap, name=None, schema=None, path=None):
+        self.shared_data = {}
         super().__init__(tap, name, schema, path)
-        self.shared_data = tap.shared_data
+        
         self.no_data_available = False
     """Define dynamic stream for    DV360 metrics."""
     global NO_SHARED_DATA
     name = "dv360_standard"
     path=f'https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2'
-    primary_keys: t.ClassVar[list[str]] = ["query_id"]
+    primary_keys: t.ClassVar[list[str]] = ["id"]
     replication_key = "Date"
     records_jsonpath = "$[*]"  # Adjust based on DV360 API's response
     next_page_token_jsonpath = None  # Assuming no pagination for this example
     # Example schema definition (flexible for metrics)
     schema = th.PropertiesList(
+        th.Property("id", th.StringType, description="Synthetic primary key for the report row."),
+        th.Property("query_id", th.StringType, description="DV360 query ID for the report run."),
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
         th.Property("Creative", th.StringType, description="Creative name or identifier"),
         th.Property("Creative ID", th.StringType, description="Creative id for creative"),
@@ -192,18 +195,20 @@ class DV360YoutubeStream(dv360Stream):
 
     def __init__(self, tap, name=None, schema=None, path=None):
         super().__init__(tap, name, schema, path)
-        self.shared_data = tap.shared_data
+        self.shared_data = {}
         logger.info(f"Shared data: {self.shared_data}")
 
     name = "dv360_youtube"
     path = "https://doubleclickbidmanager.googleapis.com/$discovery/rest?version=v2"
-    primary_keys: t.ClassVar[list[str]] = ["query_id"]
+    primary_keys: t.ClassVar[list[str]] = ["id"]
     replication_key = "Date"
     records_jsonpath = "$[*]"  # Adjust based on DV360 API's response
     next_page_token_jsonpath = None  # Assuming no pagination for this example
 
     # Example schema definition (flexible for metrics)
     schema = th.PropertiesList(
+        th.Property("id", th.StringType, description="Synthetic primary key for the report row."),
+        th.Property("query_id", th.StringType, description="DV360 query ID for the report run."),
         th.Property("Advertiser", th.StringType, description="Name of the advertiser"),
         th.Property("Date", th.StringType, description="Date of the data in YYYY/MM/DD format"),
         th.Property("YouTube Ad ID", th.StringType, description="ID of the YouTube ad"),

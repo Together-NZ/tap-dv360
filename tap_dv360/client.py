@@ -199,8 +199,15 @@ class dv360Stream(RESTStream):
             # Process CSV content and yield structured records
             csv_content = response.content.decode("utf-8")
             for row in self._parse_csv_to_records(csv_content):
-                yield {
+                record = {
                     "query_id": query_id,
-                    "report_id": report_id,
-                    **row,  # Add parsed CSV fields here
+                    **row,
                 }
+                record["id"] = "|".join([
+                    query_id,
+                    str(row.get("Date", "")),
+                    str(row.get("Creative ID", row.get("YouTube Ad ID", ""))),
+                    str(row.get("Line Item ID", "")),
+                    str(row.get("Floodlight Activity ID", "")),
+                ])
+                yield record
